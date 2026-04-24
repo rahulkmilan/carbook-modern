@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { MapPin, Fuel, Users, Star } from 'lucide-react';
 import { Badge } from './UI';
 
-export default function CarCard({ car }) {
+export default function CarCard({ car, hideAction = false }) {
   const isAvailable = car.status === 'Accepted' && !car.booked;
   const statusLabel = isAvailable ? 'Available' : car.booked ? 'Booked' : car.status === 'Pending' ? 'Pending' : 'Unavailable';
   const statusColor = isAvailable ? 'green' : car.booked ? 'red' : car.status === 'Pending' ? 'yellow' : 'red';
@@ -41,7 +41,7 @@ export default function CarCard({ car }) {
             <span className="text-xl font-black text-emerald-500">₹{car.price}</span>
             <span className="text-xs text-gray-400">/day</span>
           </div>
-          {car.status === 'Accepted' && !car.booked && (
+          {!hideAction && car.status === 'Accepted' && !car.booked && (
             <Link
               to={`/cars/${car.id}`}
               state={{ fromApp: true }}

@@ -151,16 +151,16 @@ function DealerDashboard({ username }) {
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
         {myCars.map(car => (
-          <div key={car.id} className="relative">
-            <CarCard car={car} />
-            <div className="absolute bottom-4 left-4 right-4 flex gap-2">
-              <button onClick={() => setEditCar({ id: car.id, price: car.price, location: car.location })} className="flex-1 py-1.5 text-xs font-semibold bg-white border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1">
+          <div key={car.id} className="flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <CarCard car={car} hideAction={true} />
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-2">
+              <button onClick={() => setEditCar({ id: car.id, price: car.price, location: car.location })} className="flex-1 py-2 text-xs font-bold bg-white text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-100 flex items-center justify-center gap-1 transition-colors">
                 ✏️ Edit
               </button>
-              <button onClick={() => toggleAvailability(car.id)} className="flex-1 py-1.5 text-xs font-semibold bg-white border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1">
+              <button onClick={() => toggleAvailability(car.id)} className="flex-1 py-2 text-xs font-bold bg-white text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-100 flex items-center justify-center gap-1 transition-colors">
                 <Power className="w-3 h-3" />{car.availability ? 'Disable' : 'Enable'}
               </button>
-              <button onClick={() => deleteCar(car.id)} className="px-3 py-1.5 text-xs font-semibold bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100">
+              <button onClick={() => deleteCar(car.id)} className="px-3 py-2 text-xs font-bold bg-red-50 text-red-600 border border-red-100 rounded-xl hover:bg-red-100 transition-colors">
                 <Trash2 className="w-3 h-3" />
               </button>
             </div>

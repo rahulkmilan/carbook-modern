@@ -400,22 +400,32 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         # Email dealer
         dealer_user = booking.car.dealer
+        dl_url = None
         try:
-            dl_path = booking.customer.customer_profile.dl_image.path
+            if booking.customer.role == 'customer' and booking.customer.customer_profile.dl_image:
+                dl_url = booking.customer.customer_profile.dl_image.url
         except Exception:
-            dl_path = None
+            pass
 
-        email = EmailMessage(
-            'Car Booked - Carbook',
+        email_body = (
             f'Dear {dealer_user.first_name}, your car {booking.car.make} {booking.car.model} '
-            f'({booking.car.regno}) has been booked by {booking.customer.get_full_name()}.\n'
-            f'Dropoff: {booking.dropoff_location} on {booking.dropoff_date} at {booking.dropoff_time}.',
+            f'({booking.car.regno}) has been booked by {booking.customer.get_full_name()}.\n\n'
+            f'Pickup: {booking.pickup_location} on {booking.pickup_date} at {booking.pickup_time}\n'
+            f'Dropoff: {booking.dropoff_location} on {booking.dropoff_date} at {booking.dropoff_time}\n'
+            f'Duration: {booking.nod} days\n'
+            f'Total Amount Paid: ₹{booking.amount}\n'
+        )
+        
+        if dl_url:
+            email_body += f'\nYou can view the customer\'s Driving License here: {dl_url}\n'
+
+        send_mail(
+            'Car Booked - Carbook',
+            email_body,
             settings.DEFAULT_FROM_EMAIL,
             [dealer_user.email],
+            fail_silently=True,
         )
-        if dl_path:
-            email.attach_file(dl_path)
-        email.send(fail_silently=True)
 
         return Response({'detail': 'Payment verified. Booking confirmed!'})
 
