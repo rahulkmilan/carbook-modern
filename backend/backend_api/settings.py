@@ -27,8 +27,11 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'fallback-dev-key-change-in-prod')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS_LIST = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = ALLOWED_HOSTS_LIST
 
+# Essential for logging into the Django Admin panel in production
+CSRF_TRUSTED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS_LIST if host not in ['localhost', '127.0.0.1']]
 
 # Application definition
 
@@ -197,4 +200,12 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 # Razorpay — loaded from .env
 RAZOR_KEY_ID = os.getenv('RAZOR_KEY_ID', '')
 RAZOR_KEY_SECRET = os.getenv('RAZOR_KEY_SECRET', '')
+
+# Production Security Headers
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 

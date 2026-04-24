@@ -34,7 +34,10 @@ export default function Navbar() {
                 <User className="w-4 h-4" /> Profile
               </Link>
               <button
-                onClick={() => logout()}
+                onClick={() => {
+                  logout();
+                  navigate('/login');
+                }}
                 className="flex items-center gap-1 text-sm text-red-500 hover:text-red-700 font-medium transition-colors"
               >
                 <LogOut className="w-4 h-4" /> Logout
@@ -74,7 +77,11 @@ export default function Navbar() {
                 <User className="w-4 h-4" /> Profile
               </Link>
               <button
-                onClick={() => { logout(); setMenuOpen(false); }}
+                onClick={() => {
+                  logout();
+                  setMenuOpen(false);
+                  navigate('/login');
+                }}
                 className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 font-medium transition-colors text-left"
               >
                 <LogOut className="w-4 h-4" /> Logout
