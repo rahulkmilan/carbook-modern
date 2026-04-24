@@ -17,12 +17,50 @@ from rest_framework.views import APIView
 from django.db import models as django_models
 
 from .models import Car, Booking, User, CustomerProfile, DealerProfile, Review
+from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import (
     CarSerializer, BookingSerializer, UserSerializer,
-    RegisterSerializer, CustomerProfileSerializer, DealerProfileSerializer
+    RegisterSerializer, CustomerProfileSerializer, DealerProfileSerializer,
+    CustomTokenObtainPairSerializer
 )
 from .permissions import IsAdmin, IsDealer, IsCustomer, IsAdminOrDealer, IsOwnerOrAdmin
 
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
+
+def auto_release_overdue_bookings():
+    """Automatically frees cars from paid bookings that have already passed their dropoff date."""
+    from django.utils import timezone
+    now_dt = timezone.now()
+    overdue_bookings = Booking.objects.filter(
+        paid=True,
+        returned=False,
+        dropoff_date__lt=now_dt.date()
+    )
+    today_overdue = Booking.objects.filter(
+        paid=True,
+        returned=False,
+        dropoff_date=now_dt.date(),
+        dropoff_time__lt=now_dt.time()
+    )
+    
+    all_overdue = overdue_bookings | today_overdue
+    if all_overdue.exists():
+        car_ids = all_overdue.values_list('car_id', flat=True)
+        Car.objects.filter(id__in=car_ids).update(booked=False)
+
+@api_view(['GET'])
+@pc([AllowAny])
+def api_root(request):
+    return Response({
+        'name': 'Carbook Modern API',
+        'status': 'Operational',
+        'version': '1.0.0',
+        'documentation': request.build_absolute_uri('/api/docs/'),
+        'admin': request.build_absolute_uri('/admin/')
+    })
 
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -161,12 +199,12 @@ class CarViewSet(viewsets.ModelViewSet):
             return qs.filter(dealer=self.request.user)
 
         # 3. Detail actions (Edit/Toggle/Delete): Don't filter out unavailable cars
-        # so dealers can re-enable them.
         if self.detail:
             return qs
 
-        # 4. Public Marketplace: Only show available and accepted cars
-        if not self.request.user.is_authenticated or (self.request.user.role == 'customer'):
+        # 4. Public Marketplace: Only show available and accepted cars to EVERYONE
+        # unless specifically requesting their own cars (covered above) or they are an Admin searching.
+        if not (self.request.user.is_authenticated and self.request.user.role == 'admin'):
             qs = qs.filter(availability=True, status='Accepted')
             
         return qs

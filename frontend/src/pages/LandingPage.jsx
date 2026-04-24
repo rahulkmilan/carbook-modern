@@ -11,16 +11,20 @@ export default function LandingPage() {
   const [search, setSearch] = useState('');
 
   const { data: cars = [], isLoading } = useQuery({
-    queryKey: ['cars', location, fuel],
-    queryFn: () => api.get(`cars/?status=Accepted${location ? `&location=${location}` : ''}${fuel ? `&fuel_type=${fuel}` : ''}`).then(r => r.data),
+    queryKey: ['cars'],
+    queryFn: () => api.get('cars/').then(r => r.data),
   });
 
   const locations = [...new Set(cars.map(c => c.location))];
+  
   const filtered = cars.filter(c => {
-    if (c.booked) return false;
+    const matchStatus = c.status === 'Accepted';
+    const matchLocation = location ? c.location === location : true;
     const matchFuel = fuel ? c.fuel_type === fuel : true;
     const matchSearch = search ? `${c.make} ${c.model}`.toLowerCase().includes(search.toLowerCase()) : true;
-    return matchFuel && matchSearch;
+    const matchAvailability = !c.booked;
+    
+    return matchStatus && matchLocation && matchFuel && matchSearch && matchAvailability;
   });
 
   return (

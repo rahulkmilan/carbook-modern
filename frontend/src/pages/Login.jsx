@@ -12,21 +12,22 @@ const schema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+import toast from 'react-hot-toast';
+
 export default function Login() {
   const navigate = useNavigate();
-  const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(schema) });
 
   const onSubmit = async (data) => {
-    setError('');
     try {
-      const res = await api.post('/token/', data);
+      const res = await api.post('token/', data);
       localStorage.setItem('access_token', res.data.access);
       localStorage.setItem('refresh_token', res.data.refresh);
+      toast.success('Welcome back!');
       navigate('/dashboard');
-    } catch {
-      setError('Invalid username or password.');
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Invalid username or password.');
     }
   };
 
@@ -74,8 +75,6 @@ export default function Login() {
               </div>
               {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password.message}</p>}
             </div>
-
-            {error && <p className="text-red-400 text-sm text-center bg-red-500/10 rounded-xl py-2">{error}</p>}
 
             <button
               type="submit"

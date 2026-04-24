@@ -90,12 +90,23 @@ export default function Profile() {
             <div className="border-t border-gray-100 pt-5">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2"><Image className="w-3.5 h-3.5" />Documents</p>
               <label className="block text-sm font-medium text-gray-700 mb-1">{imageLabel}</label>
+              
+              {me?.document_url && (
+                <div className="mb-3">
+                  <p className="text-xs text-emerald-600 mb-2 font-semibold flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" /> Currently uploaded document:
+                  </p>
+                  <img src={me.document_url} alt="Document" className="w-32 h-20 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                </div>
+              )}
+
               <input
                 type="file"
                 accept="image/*"
                 onChange={e => setImageFile(e.target.files[0])}
                 className="text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-emerald-50 file:text-emerald-500 hover:file:bg-emerald-100 transition-all"
               />
+              <p className="text-[10px] text-gray-400 mt-2">Upload a new file only if you want to replace the existing one.</p>
             </div>
 
             <Button type="submit" disabled={isSubmitting} className="w-full py-3 mt-2">

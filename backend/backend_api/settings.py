@@ -33,6 +33,9 @@ ALLOWED_HOSTS = ALLOWED_HOSTS_LIST
 # Essential for logging into the Django Admin panel in production
 CSRF_TRUSTED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS_LIST if host not in ['localhost', '127.0.0.1']]
 
+CORS_ALLOW_ALL_ORIGINS = True # Simplified for this project to ensure connectivity
+CORS_ALLOW_CREDENTIALS = True
+
 # Application definition
 
 CLOUDINARY_STORAGE = {

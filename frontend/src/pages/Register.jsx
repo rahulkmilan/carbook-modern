@@ -16,9 +16,10 @@ const schema = z.object({
   password: z.string().min(8, 'Min 8 characters'),
 });
 
+import toast from 'react-hot-toast';
+
 export default function Register() {
   const navigate = useNavigate();
-  const [serverError, setServerError] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({
@@ -29,7 +30,6 @@ export default function Register() {
   const role = watch('role');
 
   const onSubmit = async (data) => {
-    setServerError('');
     const formData = new FormData();
     Object.entries(data).forEach(([k, v]) => formData.append(k, v));
     if (imageFile) {
@@ -37,11 +37,12 @@ export default function Register() {
     }
     try {
       await api.post('register/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success('Registration successful! Please sign in.');
       navigate('/login');
     } catch (e) {
       const msgs = e.response?.data;
-      if (msgs) setServerError(Object.values(msgs).flat().join(' '));
-      else setServerError('Registration failed. Please try again.');
+      const errorMsg = msgs ? Object.values(msgs).flat().join(' ') : 'Registration failed.';
+      toast.error(errorMsg);
     }
   };
 
@@ -126,8 +127,6 @@ export default function Register() {
                 className="text-sm text-emerald-200 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-white/20 file:text-white hover:file:bg-white/30 transition-all"
               />
             </div>
-
-            {serverError && <p className="text-red-400 text-sm text-center bg-red-500/10 rounded-xl py-2 px-3">{serverError}</p>}
 
             <button
               type="submit"

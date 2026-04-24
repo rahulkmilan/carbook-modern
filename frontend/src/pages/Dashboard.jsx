@@ -13,14 +13,15 @@ function AdminDashboard() {
   const [rejectReason, setRejectReason] = useState('');
 
   const { data: pendingCars = [] } = useQuery({ queryKey: ['pendingCars'], queryFn: () => api.get('cars/?status=Pending').then(r => r.data) });
+  const { data: suspendedCars = [] } = useQuery({ queryKey: ['suspendedCars'], queryFn: () => api.get('cars/?status=Suspended').then(r => r.data) });
   const { data: allBookings = [] } = useQuery({ queryKey: ['allBookings'], queryFn: () => api.get('bookings/').then(r => r.data) });
   const { data: allUsers = [] } = useQuery({ queryKey: ['allUsers'], queryFn: () => api.get('users/').then(r => r.data) });
   const { data: allCars = [] } = useQuery({ queryKey: ['allCars'], queryFn: () => api.get('cars/').then(r => r.data) });
 
-  const acceptCar = async (id) => { await api.post(`cars/${id}/review/`, { decision: 'accept' }); qc.invalidateQueries(['pendingCars', 'allCars']); };
-  const rejectCar = async () => { await api.post(`cars/${rejectModal}/review/`, { decision: 'reject', reason: rejectReason }); qc.invalidateQueries(['pendingCars', 'allCars']); setRejectModal(null); setRejectReason(''); };
-  const suspendCar = async (id) => { if (confirm('Suspend this car?')) { await api.post(`cars/${id}/suspend/`); qc.invalidateQueries(['allCars']); } };
-  const deactivateUser = async (id) => { if (confirm('Permanently deactivate this user?')) { await api.post(`users/${id}/deactivate/`); qc.invalidateQueries(['allUsers']); } };
+  const acceptCar = async (id) => { await api.post(`cars/${id}/review/`, { decision: 'accept' }); qc.invalidateQueries(['pendingCars', 'suspendedCars', 'allCars']); };
+  const rejectCar = async () => { await api.post(`cars/${rejectModal}/review/`, { decision: 'reject', reason: rejectReason }); qc.invalidateQueries(['pendingCars', 'suspendedCars', 'allCars']); setRejectModal(null); setRejectReason(''); };
+  const suspendCar = async (id) => { if (confirm('Suspend this car?')) { await api.post(`cars/${id}/suspend/`); qc.invalidateQueries(['allCars', 'suspendedCars']); } };
+  const deactivateUser = async (id) => { if (confirm('Permanently deactivate this user?')) { await api.post(`users/${id}/deactivate/`); qc.invalidateQueries(['allUsers', 'allCars', 'suspendedCars']); } };
 
   const dealers = allUsers.filter(u => u.role === 'dealer');
   const customers = allUsers.filter(u => u.role === 'customer');
@@ -59,17 +60,43 @@ function AdminDashboard() {
         </section>
       )}
 
+      {/* Suspended Cars */}
+      {suspendedCars.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><XCircle className="w-5 h-5 text-red-500" /> Suspended Cars</h2>
+          <div className="space-y-3">
+            {suspendedCars.map(car => (
+              <div key={car.id} className="bg-white rounded-2xl p-4 border border-red-100 shadow-sm flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-gray-900">{car.year} {car.make} {car.model} <span className="text-gray-400 font-mono text-sm">({car.regno})</span></p>
+                  <p className="text-sm text-red-600 font-medium italic">Status: Suspended</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="primary" onClick={() => acceptCar(car.id)}><CheckCircle className="w-4 h-4" />Re-Activate</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* All Cars */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-4">All Cars</h2>
         <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
-          {allCars.map(car => (
+          {allCars.filter(c => c.status === 'Accepted').map(car => (
             <div key={car.id} className="p-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-medium text-gray-800">{car.year} {car.make} {car.model}</p>
                 <p className="text-xs text-gray-400">{car.regno} — <Badge color={car.status === 'Accepted' ? 'green' : 'yellow'}>{car.status}</Badge></p>
               </div>
-              <Button variant="danger" onClick={() => suspendCar(car.id)}><Trash2 className="w-4 h-4" />Suspend</Button>
+              <div className="flex gap-2">
+                {car.status === 'Accepted' ? (
+                  <Button variant="danger" onClick={() => suspendCar(car.id)}><Trash2 className="w-4 h-4" />Suspend</Button>
+                ) : car.status === 'Suspended' ? (
+                  <Button variant="primary" onClick={() => acceptCar(car.id)}><CheckCircle className="w-4 h-4" />Re-Activate</Button>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>
@@ -141,7 +168,7 @@ function DealerDashboard({ username }) {
     <div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         <StatsCard title="My Cars" value={myCars.length} color="sky" />
-        <StatsCard title="Active Bookings" value={myBookings.filter(b => b.paid).length} color="indigo" />
+        <StatsCard title="Total Earnings" value={`₹${myBookings.reduce((acc, b) => acc + (b.paid ? Number(b.amount) : 0), 0)}`} icon="💰" color="green" />
         <StatsCard title="Pending Approval" value={myCars.filter(c => c.status === 'Pending').length} color="yellow" />
       </div>
 
@@ -153,16 +180,35 @@ function DealerDashboard({ username }) {
         {myCars.map(car => (
           <div key={car.id} className="flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <CarCard car={car} hideAction={true} />
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-2">
-              <button onClick={() => setEditCar({ id: car.id, price: car.price, location: car.location })} className="flex-1 py-2 text-xs font-bold bg-white text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-100 flex items-center justify-center gap-1 transition-colors">
-                ✏️ Edit
-              </button>
-              <button onClick={() => toggleAvailability(car.id)} className="flex-1 py-2 text-xs font-bold bg-white text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-100 flex items-center justify-center gap-1 transition-colors">
-                <Power className="w-3 h-3" />{car.availability ? 'Disable' : 'Enable'}
-              </button>
-              <button onClick={() => deleteCar(car.id)} className="px-3 py-2 text-xs font-bold bg-red-50 text-red-600 border border-red-100 rounded-xl hover:bg-red-100 transition-colors">
-                <Trash2 className="w-3 h-3" />
-              </button>
+            <div className="p-4 bg-gray-50 border-t border-gray-100 space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Current Status</span>
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-2 h-2 rounded-full animate-pulse ${car.availability ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                  <span className={`text-xs font-bold ${car.availability ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {car.availability ? 'Live on Marketplace' : 'Offline / Hidden'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => toggleAvailability(car.id)} 
+                  className={`flex-[2] py-2.5 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 ${
+                    car.availability 
+                    ? 'bg-red-50 text-red-600 border border-red-100 hover:bg-red-100' 
+                    : 'bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100'
+                  }`}
+                >
+                  <Power className="w-3.5 h-3.5" />
+                  {car.availability ? 'Disable Listing' : 'Enable Listing'}
+                </button>
+                <button onClick={() => setEditCar({ id: car.id, price: car.price, location: car.location })} className="flex-1 py-2.5 text-xs font-bold bg-white text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-100 flex items-center justify-center gap-1 transition-all shadow-sm active:scale-95">
+                  ✏️ Edit
+                </button>
+                <button onClick={() => deleteCar(car.id)} className="px-3 py-2.5 text-xs font-bold bg-white text-gray-400 border border-gray-200 rounded-xl hover:text-red-600 hover:border-red-100 transition-all shadow-sm active:scale-95">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         ))}
