@@ -186,6 +186,10 @@ STORAGES = {
     },
 }
 
+# Compatibility for third-party packages (Cloudinary)
+DEFAULT_FILE_STORAGE = STORAGES["default"]["BACKEND"]
+STATICFILES_STORAGE = STORAGES["staticfiles"]["BACKEND"]
+
 # Media: local storage fallback config
 if not _USE_CLOUDINARY:
     MEDIA_URL = '/media/'
