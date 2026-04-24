@@ -147,19 +147,27 @@ class CarViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Car.objects.all()
+        
+        # 1. Location & Status filtering (for both public and admin)
         location = self.request.query_params.get('location')
         status_filter = self.request.query_params.get('status')
         if location:
             qs = qs.filter(location=location)
         if status_filter:
             qs = qs.filter(status=status_filter)
-        # Dealers only see their own cars if explicitly requested (e.g. for dashboard)
-        if self.request.user.is_authenticated and self.request.user.role == 'dealer' and self.request.query_params.get('my_cars') == 'true':
+
+        # 2. Dealer Dashboard: If ?my_cars=true, return ONLY dealer's own cars (all of them)
+        if self.request.user.is_authenticated and self.request.query_params.get('my_cars') == 'true':
             return qs.filter(dealer=self.request.user)
-            
-        # For the public feed, only show available cars (unless admin/dealer explicitly filtering)
-        if not self.request.user.is_authenticated or self.request.query_params.get('my_cars') != 'true':
-            qs = qs.filter(availability=True)
+
+        # 3. Detail actions (Edit/Toggle/Delete): Don't filter out unavailable cars
+        # so dealers can re-enable them.
+        if self.detail:
+            return qs
+
+        # 4. Public Marketplace: Only show available and accepted cars
+        if not self.request.user.is_authenticated or (self.request.user.role == 'customer'):
+            qs = qs.filter(availability=True, status='Accepted')
             
         return qs
 
