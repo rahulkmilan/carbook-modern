@@ -411,30 +411,38 @@ class BookingViewSet(viewsets.ModelViewSet):
         except Exception:
             return Response({'detail': 'Payment verification failed.'}, status=400)
 
+        from django.db import transaction
+        
         try:
-            booking = Booking.objects.get(order_id=order_id)
+            with transaction.atomic():
+                # Lock the car row so no other request can check/update it simultaneously
+                booking = Booking.objects.select_for_update().get(order_id=order_id)
+                car = Car.objects.select_for_update().get(id=booking.car.id)
+
+                if booking.paid:
+                    return Response({'detail': 'Payment already verified.'})
+
+                # Strict Concurrency Check: Locked at the DB level
+                if car.booked:
+                    try:
+                        # Automatically refund the slower user
+                        rzp_client.payment.refund(payment_id, {'amount': int(booking.amount * 100)})
+                        booking.delete()
+                        return Response({'detail': 'Sorry, this car was just booked by someone else. A full refund has been initiated.'}, status=400)
+                    except Exception:
+                        booking.delete()
+                        return Response({'detail': 'Car booked by someone else. Refund queued.'}, status=400)
+
+                # Confirm the booking
+                booking.razorpay_payment_id = payment_id
+                booking.paid = True
+                car.booked = True
+                car.save()
+                booking.save()
         except Booking.DoesNotExist:
             return Response({'detail': 'Booking not found.'}, status=404)
-
-        if booking.paid:
-            return Response({'detail': 'Payment already verified.'})
-            
-        # Concurrency Check: If someone else paid first while this user was checking out
-        if booking.car.booked:
-            try:
-                # Automatically refund the slower user
-                rzp_client.payment.refund(payment_id, {'amount': int(booking.amount * 100)})
-                booking.delete()
-                return Response({'detail': 'Sorry, this car was just booked by someone else. A full refund has been initiated.'}, status=400)
-            except Exception:
-                booking.delete()
-                return Response({'detail': 'Car booked by someone else. Refund queued.'}, status=400)
-
-        booking.razorpay_payment_id = payment_id
-        booking.paid = True
-        booking.car.booked = True
-        booking.car.save()
-        booking.save()
+        except Exception as e:
+            return Response({'detail': f'Internal error during verification: {str(e)}'}, status=500)
 
         # Email dealer
         dealer_user = booking.car.dealer
