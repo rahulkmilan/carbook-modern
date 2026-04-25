@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
 import CarCard from '../components/CarCard';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { Search, MapPin, Fuel } from 'lucide-react';
 
 export default function LandingPage() {
   const [location, setLocation] = useState('');
@@ -15,7 +15,10 @@ export default function LandingPage() {
     queryFn: () => api.get('cars/').then(r => r.data),
   });
 
-  const locations = [...new Set(cars.map(c => c.location))];
+  // Stabilize the locations list so it never changes during filtering
+  const locations = useMemo(() => {
+    return [...new Set(cars.map(c => c.location))].filter(Boolean).sort();
+  }, [cars.length]); // Only recalculate if the total number of cars changes
   
   const filtered = cars.filter(c => {
     const matchStatus = c.status === 'Accepted';
