@@ -1,106 +1,189 @@
-# 🏎️ Carbook: Peer-to-Peer Car Rental Platform
+# 🏎️ Carbook: Concurrency-Safe Peer-to-Peer Rental System
 
-**Carbook** is a production-ready, fully decoupled peer-to-peer car rental platform designed to handle **concurrent bookings, payment integrity, and failure-safe data systems**.
+**Carbook** is a backend-driven peer-to-peer rental platform designed to handle **concurrent booking conflicts, payment race conditions, and failure-safe transaction flows**.
 
-Unlike typical CRUD projects, Carbook handles concurrency conflicts, secure pricing, and cascading data protection at scale.
+Unlike typical CRUD applications, the system is built around **data integrity under real-world edge cases**—including duplicate payments, overlapping booking attempts, and partial system failures.
 
 ---
 
-## 📸 Preview
+## 🚀 Live Preview
 
 ![Carbook Landing Page](./assets/image-1.png)
 
-> **Live Demo:** https://carbook-modern.vercel.app | **Demo Video:** [Walkthrough Recording](https://drive.google.com/file/d/1vkLT_0JmQPbDshnC3oini55sEdCwb2uI/view?usp=sharing)
+🌐 https://carbook-modern.vercel.app
+🎥 Demo: https://drive.google.com/file/d/1vkLT_0JmQPbDshnC3oini55sEdCwb2uI/view
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+## 🧠 Core Engineering Focus
 
-### Frontend
-[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
-[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![React Query](https://img.shields.io/badge/React_Query-FF4154?style=for-the-badge&logo=react-query&logoColor=white)](https://tanstack.com/query/latest)
+This project is centered around solving **non-trivial backend problems**:
 
-### Backend
-[![Django](https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white)](https://www.djangoproject.com/)
-[![DRF](https://img.shields.io/badge/Django_REST_Framework-092E20?style=for-the-badge&logo=django&logoColor=white)](https://www.django-rest-framework.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![SimpleJWT](https://img.shields.io/badge/SimpleJWT-F80000?style=for-the-badge&logo=json-web-tokens&logoColor=white)](https://django-rest-framework-simplejwt.readthedocs.io/)
+* Concurrency control in booking systems
+* Payment integrity under duplicate or delayed callbacks
+* Idempotent API design
+* Failure-safe data handling
+* Server-side trust boundaries
 
 ---
 
-## ⚡ Key Highlights
+## ⚡ Engineering Challenges & Solutions
 
-### 🛡️ Backend Engineering (Core Strength)
-*   **Race Condition Protection:** Conflicting transactions are resolved using payment timestamp verification + backend locking, with automatic refunds triggered for failed attempts via Razorpay.
-*   **Server-Side Pricing Engine:** Rental duration and pricing are computed securely using backend `datetime` logic—eliminating client-side manipulation risks.
-*   **Graceful Data Handling:** Replaces destructive deletes with "Graceful Suspensions," ensuring active bookings and financial records are never compromised even if a car/dealer is removed.
-*   **Access Control Enforcement:** Prevents unauthorized resource access through strict backend permission enforcement and route-level validation.
+### 🧵 Concurrent Booking Conflicts
 
-### 👥 Role-Based System
-*   **Customers:** Booking history, license verification, and secure profile management.
-*   **Dealers:** Vehicle listing, dynamic pricing control, and availability toggling.
-*   **Admins:** Comprehensive platform moderation, listing approvals, and system health monitoring.
+**Problem:** Multiple users attempting to book the same vehicle simultaneously
 
-### 💳 Integrations
-*   **Razorpay:** Secure payment handling and automated refund logic for edge-case collisions.
-*   **Cloudinary:** Scalable cloud-hosting for vehicle photography and sensitive legal documents (RC Books).
+**Solution:**
+
+* Backend-enforced validation with transactional safeguards
+* Payment timestamp verification to resolve conflicts deterministically
+* Automatic refund flow triggered for failed booking attempts via Razorpay
+
+---
+
+### 💳 Payment Integrity & Idempotency
+
+**Problem:** Duplicate or delayed payment callbacks causing inconsistent state
+
+**Solution:**
+
+* Idempotent payment processing layer
+* Ensures a booking is confirmed exactly once per successful transaction
+* Prevents duplicate bookings and inconsistent financial records
+
+---
+
+### 🧮 Secure Pricing Engine
+
+**Problem:** Client-side manipulation of pricing and rental duration
+
+**Solution:**
+
+* Fully server-side pricing computation using validated datetime logic
+* Backend acts as the single source of truth for all pricing decisions
+
+---
+
+### 🧱 Failure-Safe Data Design
+
+**Problem:** Deleting entities (cars/users) breaking active bookings or financial history
+
+**Solution:**
+
+* Introduced **graceful suspension model** instead of destructive deletes
+* Preserves historical and financial data integrity across all flows
+
+---
+
+### 🔐 Strict Access Control
+
+**Problem:** Unauthorized access to user-specific resources
+
+**Solution:**
+
+* Enforced backend-level authorization (no client trust)
+* Role + ownership validation for every critical operation
+
+---
+
+## 🏗️ Architecture Overview
+
+* **Frontend:** React (Vite) + React Query
+* **Backend:** Django + Django REST Framework
+* **Database:** PostgreSQL (transactional consistency)
+
+### External Services
+
+* **Razorpay:** Payment processing + automated refunds
+* **Cloudinary:** Media storage (vehicle images & documents)
+
+> The backend is designed as the **single source of truth**, with all critical logic (booking validation, pricing, payments) enforced server-side.
+
+**Deployment:** Backend on [Render](https://render.com) · Frontend on [Vercel](https://vercel.com) · Database on [Neon](https://neon.tech) (PostgreSQL)
 
 ---
 
 ## 📊 System Design Considerations
 
-- Designed to handle **concurrent booking collisions** using backend validation + payment verification timing.
-- Ensures **idempotent operations** during payment callbacks to avoid duplicate state changes or double bookings.
-- Implements **atomic operations** where required to ensure consistency during critical booking and payment flows.
-- Uses a **state-driven booking lifecycle** (Pending → Confirmed → Completed → Cancelled) to manage transaction transitions.
-- Backend enforces a **single source of truth** for all pricing, availability, and booking validation logic.
-- **Trade-off:** Prioritized **data integrity over latency** in critical booking flows to ensure financial correctness.
-- **Validated booking consistency** under simulated concurrent requests.
+* Designed to handle **concurrent booking collisions** safely
+* Ensures **idempotent operations** in payment workflows
+* Uses **atomic database operations** for critical state transitions
+* Implements a **state-driven booking lifecycle**
+  *(Pending → Confirmed → Completed → Cancelled)*
+* Validated behavior under simulated concurrent requests
+
+---
+
+## ⚖️ Key Design Trade-off
+
+> Prioritized **data consistency over latency** in booking and payment flows
+
+The system intentionally accepts slightly higher response times to guarantee:
+
+* No double bookings
+* No financial inconsistencies
+* Strong transactional integrity
+
+---
+
+## 🛠️ Tech Stack
+
+**Frontend**
+
+* React, Vite, Tailwind CSS, React Query
+
+**Backend**
+
+* Django, Django REST Framework, PostgreSQL
+* JWT Authentication (SimpleJWT)
 
 ---
 
 ## 📂 Project Structure
 
-```text
+```
 carbook-modern/
-├── backend/                # Django REST Framework Backend
-│   ├── core/               # Application logic (Models, Views, Serializers)
-│   ├── backend_api/        # Project settings and core URL routing
-│   └── staticfiles/        # Collected static assets for production
-├── frontend/               # React (Vite) Frontend
-│   ├── src/
-│   │   ├── components/     # Reusable UI elements (Navbar, Cards, etc.)
-│   │   ├── pages/          # Page-level components (Landing, Dashboard, etc.)
-│   │   └── services/       # API integration layer (Axios/Auth)
-│   └── public/             # Static assets (Favicons, Icons)
+├── backend/
+│   ├── core/
+│   ├── backend_api/
+│   └── staticfiles/
+├── frontend/
+│   ├── components/
+│   ├── pages/
+│   └── services/
 └── README.md
 ```
 
 ---
 
-## 📖 API Documentation
+## 🚀 Running Locally
 
-The backend is equipped with **drf-spectacular** to provide interactive API documentation.
-- **Swagger UI:** [http://localhost:8000/api/docs/](http://localhost:8000/api/docs/)
-- **Schema (YAML):** [http://localhost:8000/api/schema/](http://localhost:8000/api/schema/)
+### Backend
 
----
+> Copy the example env file and fill in your credentials:
 
-## 🚀 Quick Start
+| Variable | Description |
+|---|---|
+| `SECRET_KEY` | Django secret key |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `RAZOR_KEY_ID` | Razorpay public key |
+| `RAZOR_KEY_SECRET` | Razorpay secret key |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary media storage |
+| `EMAIL_HOST_USER` | Gmail SMTP address |
+| `FRONTEND_URL` | Your Vercel domain |
 
-### 1. Backend
 ```bash
 cd backend
 python -m venv venv
-# Windows: .\venv\Scripts\activate | Mac/Linux: source venv/bin/activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+cp .env.example .env      # Fill in your API keys
 python manage.py migrate
 python manage.py runserver
 ```
 
-### 2. Frontend
+### Frontend
+
 ```bash
 cd frontend
 npm install
@@ -109,45 +192,18 @@ npm run dev
 
 ---
 
-## 🔐 Environment Variables (.env)
-Create a `.env` file in the `backend/` directory:
+## 🎯 What Makes This System Non-Trivial
 
-```ini
-SECRET_KEY=your_django_secret
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-FRONTEND_URL=http://localhost:5173
-CORS_ALLOWED_ORIGINS=http://localhost:5173
-
-# Razorpay API
-RAZOR_KEY_ID=your_razorpay_key
-RAZOR_KEY_SECRET=your_razorpay_secret
-
-# Cloudinary
-CLOUDINARY_CLOUD_NAME=name
-CLOUDINARY_API_KEY=key
-CLOUDINARY_API_SECRET=secret
-```
+* Handles **real-world concurrency issues**, not just user flows
+* Designed with **defensive backend principles** (zero client trust)
+* Ensures **financial correctness under failure scenarios**
+* Implements **idempotency and transactional safeguards**
+* Built with a **consistency-first architecture mindset**
 
 ---
 
-## 🌐 Deployment
+## 🧾 Summary
 
-- **Frontend:** Vercel / Netlify
-- **Backend:** Render / Heroku
-- **Database:** PostgreSQL (Production) / SQLite (Dev)
+Carbook is not just a feature-driven application—it is a **backend-focused system designed to simulate production-grade challenges**, particularly around concurrency, payments, and data integrity.
 
----
-
-## 🎯 Why this project stands out
-
-Carbook isn’t just a feature-based app—it’s built to simulate real production challenges, including:
-- **Built with a defensive backend mindset**, assuming all client input is untrusted and validating everything server-side.
-- **Handling simultaneous financial transactions** with integrity using transaction locks.
-- **Ensuring data consistency** under high concurrency environments.
-- **Designing failure-safe backend systems** that preserve historical financial records.
-
----
-
-*Designed and developed as a showcase of Full-Stack Architecture and secure REST API design.*
-
+It reflects an emphasis on **correctness, reliability, and system design over surface-level features**.
