@@ -478,39 +478,49 @@ class BookingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         booking = self.get_object()
+        
+        # Security: Only the customer or admin can cancel
         if booking.customer != request.user and request.user.role not in ['admin', 'dealer']:
-            return Response({'detail': 'Permission denied.'}, status=403)
+            return Response({'detail': f'Permission denied. You are logged in as {request.user.username} but this booking belongs to {booking.customer.username}.'}, status=403)
 
         refund_id = None
         if booking.paid and booking.razorpay_payment_id:
             rzp_client = razorpay.Client(auth=(settings.RAZOR_KEY_ID, settings.RAZOR_KEY_SECRET))
             try:
+                # Razorpay amounts are in paise (int)
+                amt_paise = int(float(booking.amount) * 100)
                 refund = rzp_client.payment.refund(booking.razorpay_payment_id, {
-                    'amount': int(booking.amount) * 100,  # DecimalField — safe to cast directly
+                    'amount': amt_paise,
                     'speed': 'optimum'
                 })
                 refund_id = refund.get('id', '')
             except Exception as e:
-                # In test mode, payments are often not captured instantly, causing refund to fail.
-                # We log it, but still allow the booking to be cancelled so the car isn't stuck.
+                print(f"DEBUG: Razorpay Refund failed: {str(e)}")
                 refund_id = 'failed_test_mode'
 
-        # Notify dealer if email is configured
-        dealer_user = booking.car.dealer
-        send_mail(
-            'Booking Cancelled',
-            f'Booking for {booking.car.make} {booking.car.model} by {booking.customer.get_full_name()} was cancelled.',
-            settings.DEFAULT_FROM_EMAIL,
-            [dealer_user.email],
-            fail_silently=True,
-        )
-
-        booking.car.booked = False
-        booking.car.save()
-        booking.delete()
-        
-        detail_msg = 'Booking cancelled and refund initiated.' if refund_id != 'failed_test_mode' else 'Booking cancelled (Refund skipped due to Razorpay test-mode lag).'
-        return Response({'detail': detail_msg, 'refund_id': refund_id})
+        try:
+            # Notify dealer - do this before deletion
+            dealer_user = booking.car.dealer
+            send_mail(
+                'Booking Cancelled - Carbook',
+                f'The booking for {booking.car.make} {booking.car.model} by {booking.customer.get_full_name()} has been cancelled.',
+                settings.DEFAULT_FROM_EMAIL,
+                [dealer_user.email],
+                fail_silently=True,
+            )
+            
+            # Free the car
+            car = booking.car
+            car.booked = False
+            car.save()
+            
+            # Delete the booking record
+            booking.delete()
+            
+            detail_msg = 'Booking cancelled and refund initiated.' if refund_id != 'failed_test_mode' else 'Booking cancelled (Note: Automated refund skipped, please process manually if charged).'
+            return Response({'detail': detail_msg, 'refund_id': refund_id})
+        except Exception as e:
+            return Response({'detail': f'Error during cancellation cleanup: {str(e)}'}, status=500)
 
     @action(detail=True, methods=['post'])
     def mark_returned(self, request, pk=None):
