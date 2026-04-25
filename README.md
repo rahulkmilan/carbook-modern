@@ -10,7 +10,7 @@ Unlike typical CRUD projects, Carbook handles concurrency conflicts, secure pric
 
 ![Carbook Landing Page](./assets/image-1.png)
 
-> **Live Demo:** https://carbook-modern.vercel.app | **Demo Video:** [Walkthrough Recording](./assets/Carbook.mp4)
+> **Live Demo:** https://carbook-modern.vercel.app | **Demo Video:** [Walkthrough Recording](https://drive.google.com/file/d/1vkLT_0JmQPbDshnC3oini55sEdCwb2uI/view?usp=sharing)
 
 ---
 
@@ -57,6 +57,7 @@ Unlike typical CRUD projects, Carbook handles concurrency conflicts, secure pric
 - Uses a **state-driven booking lifecycle** (Pending → Confirmed → Completed → Cancelled) to manage transaction transitions.
 - Backend enforces a **single source of truth** for all pricing, availability, and booking validation logic.
 - **Trade-off:** Prioritized **data integrity over latency** in critical booking flows to ensure financial correctness.
+- **Validated booking consistency** under simulated concurrent requests.
 
 ---
 
