@@ -99,7 +99,7 @@ This project is centered around solving **non-trivial backend problems**:
 
 > The backend is designed as the **single source of truth**, with all critical logic (booking validation, pricing, payments) enforced server-side.
 
-**Deployment:** Backend on [Render](https://render.com) · Frontend on [Vercel](https://vercel.com) · Database on [Neon](https://neon.tech) (PostgreSQL)
+**Deployment:** Backend on [Render](https://render.com) · Frontend on [Vercel](https://vercel.com) · Database on [Supabase](https://supabase.com) (PostgreSQL)
 
 ---
 
