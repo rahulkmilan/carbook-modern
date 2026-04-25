@@ -65,9 +65,18 @@ export default function CarDetail() {
         name: 'Carbook',
         description: `Booking: ${car.make} ${car.model}`,
         handler: async (response) => {
-          await api.post('bookings/verify_payment/', response);
-          toast.success('Payment successful! Booking confirmed.');
-          navigate('/dashboard');
+          try {
+            setLoading(true);
+            await api.post('bookings/verify_payment/', response);
+            toast.success('Payment successful! Booking confirmed.');
+            navigate('/dashboard');
+          } catch (err) {
+            console.error('Payment Verification Error:', err);
+            const errMsg = err.response?.data?.detail || 'Payment verification failed. Please contact support if your money was deducted.';
+            toast.error(errMsg, { duration: 6000 });
+          } finally {
+            setLoading(false);
+          }
         },
       };
       const rzp = new window.Razorpay(options);
