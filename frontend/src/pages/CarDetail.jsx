@@ -7,6 +7,7 @@ import { Button, Modal, InputField } from '../components/UI';
 import { MapPin, Fuel, Users, Calendar } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import toast from 'react-hot-toast';
+import { getUser } from '../services/auth';
 
 export default function CarDetail() {
   const { id } = useParams();
@@ -149,7 +150,16 @@ export default function CarDetail() {
               {car.booked ? (
                 <p className="text-red-500 font-semibold text-center py-4 bg-red-50 rounded-xl">This car is currently booked.</p>
               ) : car.status === 'Accepted' ? (
-                <Button onClick={() => setBookOpen(true)} className="w-full py-4 text-base">
+                <Button 
+                  onClick={() => {
+                    if (getUser()) {
+                      setBookOpen(true);
+                    } else {
+                      navigate('/login');
+                    }
+                  }} 
+                  className="w-full py-4 text-base"
+                >
                   Book This Car
                 </Button>
               ) : (
