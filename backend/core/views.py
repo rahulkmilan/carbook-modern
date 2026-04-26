@@ -224,12 +224,13 @@ class CarViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Car accepted.'})
         elif decision == 'reject':
             dealer_user = car.dealer
-            send_mail(
-                f'Car Rejection: {car.make} {car.model}',
-                f'Dear {dealer_user.first_name}, your car ({car.regno}) was rejected. Reason: {reason}',
-                settings.DEFAULT_FROM_EMAIL,
-                [dealer_user.email],
-            )
+            if dealer_user.email:
+                send_mail(
+                    f'Car Rejection: {car.make} {car.model}',
+                    f'Dear {dealer_user.first_name}, your car ({car.regno}) was rejected. Reason: {reason}',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [dealer_user.email],
+                )
             car.delete()
             return Response({'detail': 'Car rejected and removed.'})
         return Response({'detail': 'Invalid decision.'}, status=400)
@@ -238,13 +239,14 @@ class CarViewSet(viewsets.ModelViewSet):
     def suspend(self, request, pk=None):
         car = self.get_object()
         dealer_user = car.dealer
-        send_mail(
-            'Car Suspended',
-            f'Dear {dealer_user.first_name}, your car ({car.regno} {car.make} {car.model}) has been suspended.',
-            settings.DEFAULT_FROM_EMAIL,
-            [dealer_user.email],
-            fail_silently=True,
-        )
+        if dealer_user.email:
+            send_mail(
+                'Car Suspended',
+                f'Dear {dealer_user.first_name}, your car ({car.regno} {car.make} {car.model}) has been suspended.',
+                settings.DEFAULT_FROM_EMAIL,
+                [dealer_user.email],
+                fail_silently=True,
+            )
         car.status = 'Suspended'
         car.availability = False
         car.save()
@@ -442,6 +444,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         except Booking.DoesNotExist:
             return Response({'detail': 'Booking not found.'}, status=404)
         except Exception as e:
+            print(f"\n[CRITICAL] Verify Payment 500 Error: {str(e)}\n")
             return Response({'detail': f'Internal error during verification: {str(e)}'}, status=500)
 
         # Email dealer
@@ -465,13 +468,14 @@ class BookingViewSet(viewsets.ModelViewSet):
         if dl_url:
             email_body += f'\nYou can view the customer\'s Driving License here: {dl_url}\n'
 
-        send_mail(
-            'Car Booked - Carbook',
-            email_body,
-            settings.DEFAULT_FROM_EMAIL,
-            [dealer_user.email],
-            fail_silently=True,
-        )
+        if dealer_user.email:
+            send_mail(
+                'Car Booked - Carbook',
+                email_body,
+                settings.DEFAULT_FROM_EMAIL,
+                [dealer_user.email],
+                fail_silently=True,
+            )
 
         return Response({'detail': 'Payment verified. Booking confirmed!'})
 
@@ -501,13 +505,14 @@ class BookingViewSet(viewsets.ModelViewSet):
         try:
             # Notify dealer - do this before deletion
             dealer_user = booking.car.dealer
-            send_mail(
-                'Booking Cancelled - Carbook',
-                f'The booking for {booking.car.make} {booking.car.model} by {booking.customer.get_full_name()} has been cancelled.',
-                settings.DEFAULT_FROM_EMAIL,
-                [dealer_user.email],
-                fail_silently=True,
-            )
+            if dealer_user.email:
+                send_mail(
+                    'Booking Cancelled - Carbook',
+                    f'The booking for {booking.car.make} {booking.car.model} by {booking.customer.get_full_name()} has been cancelled.',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [dealer_user.email],
+                    fail_silently=True,
+                )
             
             # Free the car
             car = booking.car
@@ -551,13 +556,14 @@ class UserViewSet(viewsets.ModelViewSet):
         user = self.get_object()
         if user.role == 'dealer':
             Car.objects.filter(dealer=user).update(status='Suspended', availability=False)
-        send_mail(
-            'Account Deactivated',
-            f'Dear {user.first_name}, your Carbook account has been permanently deactivated.',
-            settings.DEFAULT_FROM_EMAIL,
-            [user.email],
-            fail_silently=True,
-        )
+        if user.email:
+            send_mail(
+                'Account Deactivated',
+                f'Dear {user.first_name}, your Carbook account has been permanently deactivated.',
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                fail_silently=True,
+            )
         user.is_active = False
         user.save()
         return Response({'detail': f'User {user.username} deactivated. All cars suspended.'})
