@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
@@ -20,6 +20,13 @@ export default function CarDetail() {
   
   const [bookOpen, setBookOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  useEffect(() => {
+    if (location.state?.openBooking && getUser()) {
+      setBookOpen(true);
+      navigate(location.pathname, { replace: true, state: { ...location.state, openBooking: false } });
+    }
+  }, [location.state, navigate, location.pathname]);
   
   // Booking States
   const [pickupLoc, setPickupLoc] = useState('');
@@ -155,7 +162,7 @@ export default function CarDetail() {
                     if (getUser()) {
                       setBookOpen(true);
                     } else {
-                      navigate('/login');
+                      navigate('/login', { state: { returnUrl: location.pathname, openBooking: true, fromApp: true } });
                     }
                   }} 
                   className="w-full py-4 text-base"

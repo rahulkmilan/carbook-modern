@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(schema) });
 
@@ -25,7 +26,10 @@ export default function Login() {
       localStorage.setItem('access_token', res.data.access);
       localStorage.setItem('refresh_token', res.data.refresh);
       toast.success('Welcome back!');
-      navigate('/dashboard');
+      
+      const returnUrl = location.state?.returnUrl || '/dashboard';
+      const returnState = location.state || {};
+      navigate(returnUrl, { state: returnState, replace: true });
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Invalid username or password.');
     }
