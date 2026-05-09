@@ -50,6 +50,7 @@ class Booking(models.Model):
     razorpay_payment_id = models.CharField(max_length=100, blank=True)
     paid = models.BooleanField(default=False)
     returned = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 class Review(models.Model):
     car = models.ForeignKey(Car, on_delete=models.CASCADE, related_name='reviews')

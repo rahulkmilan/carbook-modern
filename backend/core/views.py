@@ -30,26 +30,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
-def auto_release_overdue_bookings():
-    """Automatically frees cars from paid bookings that have already passed their dropoff date."""
-    from django.utils import timezone
-    now_dt = timezone.now()
-    overdue_bookings = Booking.objects.filter(
-        paid=True,
-        returned=False,
-        dropoff_date__lt=now_dt.date()
-    )
-    today_overdue = Booking.objects.filter(
-        paid=True,
-        returned=False,
-        dropoff_date=now_dt.date(),
-        dropoff_time__lt=now_dt.time()
-    )
-    
-    all_overdue = overdue_bookings | today_overdue
-    if all_overdue.exists():
-        car_ids = all_overdue.values_list('car_id', flat=True)
-        Car.objects.filter(id__in=car_ids).update(booked=False)
 
 @api_view(['GET'])
 @pc([AllowAny])
@@ -158,9 +138,9 @@ class ContactView(APIView):
         subject = request.data.get('subject', 'Contact Form')
         message = request.data.get('message')
         send_mail(
-            subject,
+            f'[Carbook Contact] {subject}',
             f'From: {name} <{email}>\n\n{message}',
-            email,
+            settings.DEFAULT_FROM_EMAIL,
             [settings.DEFAULT_FROM_EMAIL],
         )
         return Response({'detail': 'Message sent successfully.'})
@@ -211,6 +191,13 @@ class CarViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(dealer=self.request.user)
+
+    def perform_destroy(self, instance):
+        """Prevent deleting cars that have active paid bookings."""
+        if instance.bookings.filter(paid=True, returned=False).exists():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError('Cannot delete a car with active bookings. Wait for all bookings to complete or cancel them first.')
+        instance.delete()
 
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
     def review(self, request, pk=None):
@@ -301,6 +288,7 @@ def auto_release_overdue_bookings():
     """
     Efficiently marks overdue paid bookings as returned using bulk DB operations.
     Uses DB-level date comparison instead of a slow Python loop.
+    Also cleans up stale unpaid bookings (abandoned payment flows).
     """
     today = timezone.localdate()
     now_time = timezone.localtime().time()
@@ -320,6 +308,10 @@ def auto_release_overdue_bookings():
         # Bulk update cars — one single DB query
         Car.objects.filter(id__in=car_ids).update(booked=False)
 
+    # Clean up stale unpaid bookings (abandoned payment flows older than 30 minutes)
+    stale_cutoff = timezone.now() - timedelta(minutes=30)
+    Booking.objects.filter(paid=False, created_at__lt=stale_cutoff).delete()
+
 
 class BookingViewSet(viewsets.ModelViewSet):
     serializer_class = BookingSerializer
@@ -336,6 +328,8 @@ class BookingViewSet(viewsets.ModelViewSet):
         return Booking.objects.filter(customer=user)
 
     def create(self, request, *args, **kwargs):
+        from django.db import transaction
+
         car_id = request.data.get('car_id')
         pickup_date_str = request.data.get('pickup_date')
         dropoff_date_str = request.data.get('dropoff_date')
@@ -356,44 +350,46 @@ class BookingViewSet(viewsets.ModelViewSet):
         nod = max(1, (dropoff_dt - pickup_dt).days)
 
         try:
-            car = Car.objects.get(id=car_id)
+            with transaction.atomic():
+                # Lock the car row to prevent race conditions during booking creation
+                car = Car.objects.select_for_update().get(id=car_id)
+
+                if car.dealer == request.user:
+                    return Response({'detail': 'You cannot book your own car.'}, status=400)
+
+                # Critical Security/Availability Checks (under lock)
+                if car.status != 'Accepted':
+                    return Response({'detail': 'This car is not approved for rental.'}, status=400)
+                if not car.availability:
+                    return Response({'detail': 'The dealer has temporarily disabled this car.'}, status=400)
+                if car.booked:
+                    return Response({'detail': 'This car is currently booked by another user.'}, status=400)
+
+                amount = nod * car.price
+                rzp_client = razorpay.Client(auth=(settings.RAZOR_KEY_ID, settings.RAZOR_KEY_SECRET))
+                order = rzp_client.order.create({
+                    'amount': amount * 100,
+                    'currency': 'INR',
+                    'receipt': f'rcpt_{car.regno}',
+                    'payment_capture': 1
+                })
+
+                booking = Booking.objects.create(
+                    car=car,
+                    customer=request.user,
+                    pickup_location=request.data.get('pickup_location'),
+                    pickup_date=request.data.get('pickup_date'),
+                    pickup_time=request.data.get('pickup_time'),
+                    dropoff_location=request.data.get('dropoff_location'),
+                    dropoff_date=request.data.get('dropoff_date'),
+                    dropoff_time=request.data.get('dropoff_time'),
+                    nod=nod,
+                    amount=amount,
+                    order_id=order['id'],
+                )
         except Car.DoesNotExist:
             return Response({'detail': 'Car not found.'}, status=404)
-            
-        if car.dealer == request.user:
-            return Response({'detail': 'You cannot book your own car.'}, status=400)
 
-        # Critical Security/Availability Checks
-        if car.status != 'Accepted':
-            return Response({'detail': 'This car is not approved for rental.'}, status=400)
-        if not car.availability:
-            return Response({'detail': 'The dealer has temporarily disabled this car.'}, status=400)
-        if car.booked:
-            return Response({'detail': 'This car is currently booked by another user.'}, status=400)
-
-
-        amount = nod * car.price
-        rzp_client = razorpay.Client(auth=(settings.RAZOR_KEY_ID, settings.RAZOR_KEY_SECRET))
-        order = rzp_client.order.create({
-            'amount': amount * 100,
-            'currency': 'INR',
-            'receipt': f'rcpt_{car.regno}',
-            'payment_capture': 1
-        })
-
-        booking = Booking.objects.create(
-            car=car,
-            customer=request.user,
-            pickup_location=request.data.get('pickup_location'),
-            pickup_date=request.data.get('pickup_date'),
-            pickup_time=request.data.get('pickup_time'),
-            dropoff_location=request.data.get('dropoff_location'),
-            dropoff_date=request.data.get('dropoff_date'),
-            dropoff_time=request.data.get('dropoff_time'),
-            nod=nod,
-            amount=amount,
-            order_id=order['id'],
-        )
         serializer = self.get_serializer(booking)
         return Response({**serializer.data, 'razorpay_key': settings.RAZOR_KEY_ID}, status=201)
 

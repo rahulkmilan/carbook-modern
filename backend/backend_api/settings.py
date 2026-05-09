@@ -33,7 +33,7 @@ ALLOWED_HOSTS = ALLOWED_HOSTS_LIST
 # Essential for logging into the Django Admin panel in production
 CSRF_TRUSTED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS_LIST if host not in ['localhost', '127.0.0.1']]
 
-CORS_ALLOW_ALL_ORIGINS = True # Simplified for this project to ensure connectivity
+# CORS is configured per-environment below (see line ~178)
 CORS_ALLOW_CREDENTIALS = True
 
 # Application definition
@@ -156,6 +156,14 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '30/minute',
+        'user': '60/minute',
+    },
 }
 
 SPECTACULAR_SETTINGS = {
@@ -190,9 +198,7 @@ STORAGES = {
     },
 }
 
-# Compatibility for third-party packages (Cloudinary)
-DEFAULT_FILE_STORAGE = STORAGES["default"]["BACKEND"]
-STATICFILES_STORAGE = STORAGES["staticfiles"]["BACKEND"]
+
 
 # Media: local storage fallback config
 if not _USE_CLOUDINARY:
